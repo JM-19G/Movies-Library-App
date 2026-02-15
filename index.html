@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie App Document</title>
+    <link rel="stylesheet" href="src/output.css">
+    
+</head>
+<body class="bg-[#d04c71] text-white">
+
+  <!-- Navbar -->
+  <header class="fixed w-full z-50 bg-linear-to-b from-black/80 to-transparent">
+    <div class="max-w-7xl mx-auto flex items-center justify-between p-4">
+      <h1 class="text-2xl font-bold text-red-500">MovieBox</h1>
+      <nav class="space-x-6 hidden md:block">
+        <a href="#" class="hover:text-red-400">Home</a>
+        <a href="#" class="hover:text-red-400">Movies</a>
+        <a href="#" class="hover:text-red-400">Series</a>
+        <a href="#" class="hover:text-red-400">My List</a>
+      </nav>
+    </div>
+  </header>
+
+
+  <!-- Hero Section -->
+  <section class="h-[80vh] bg-cover bg-center flex items-center"
+  style="background-image:url('https://images.unsplash.com/photo-1536440136628-849c177e76a1')">
+    
+    <div class="bg-black/70 w-full h-full flex items-center">
+      <div class="max-w-4xl mx-auto px-6">
+        <h3 class="text-5xl font-bold"> Welcome to Manoah MovieBox</h3>
+        <h2 class="text-2xl font-bold mb-4">Unlimited Movies, TV Shows & More</h2>
+        <p class="text-lg text-gray-300 mb-6">Watch anywhere. Cancel anytime.</p>
+        <button class="bg-red-600 px-6 py-3 rounded-lg hover:bg-red-700">
+          Browse Library
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Movies Row Container -->
+  <main class="max-w-7xl mx-auto px-4 space-y-12 mt-10" id="movie-sections"></main>
+
+
+  <script>
+const API_KEY = "37713578e6312ef9c62eb20e731e075f";
+const BASE = "https://api.themoviedb.org/3";
+const IMG = "https://image.tmdb.org/t/p/w500";
+
+const sections = [
+  // {title:"Action", url:`/movie/action`},
+  // {title:"Comedy", url:`/movie/comedy`},
+  {title:"Trending", url:`/trending/movie/week`},
+  {title:"Popular", url:`/movie/popular`},
+  {title:"Top Rated", url:`/movie/top_rated`},
+  
+];
+
+const main = document.getElementById("movie-sections");
+
+async function getMovies(endpoint){
+  const res = await fetch(`${BASE}${endpoint}?api_key=${API_KEY}`);
+  const data = await res.json();
+  return data.results;
+}
+
+function createRow(title, movies){
+  const row = document.createElement("section");
+  row.className="space-y-3";
+
+  const sliderId = "slider"+Math.random();
+
+  row.innerHTML=`
+    <h2 class="text-2xl font-semibold">${title}</h2>
+    <div class="relative">
+      <div id="${sliderId}" class="flex gap-4 overflow-x-auto scroll-smooth pb-4 cursor-grab active:cursor-grabbing">
+        ${movies.map(m=>`
+          <div class="min-w-[160px] md:min-w-[200px] group relative">
+            <img src="${IMG+m.poster_path}" 
+            class="rounded-xl hover:scale-110 transition duration-300"
+            onclick='openModal(${JSON.stringify(m)})'>
+
+            <button onclick='saveMovie(${JSON.stringify(m)})'
+              class="absolute bottom-2 right-2 bg-black/70 px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100">
+              + My List
+            </button>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+
+  main.appendChild(row);
+  enableDragScroll(document.getElementById(sliderId));
+}
+
+async function init(){
+  for(const s of sections){
+    const movies = await getMovies(s.url);
+    createRow(s.title,movies);
+  }
+}
+init();
+
+
+// ⭐ FAVORITES
+function saveMovie(movie){
+  let list = JSON.parse(localStorage.getItem("myList")) || [];
+  if(!list.find(m=>m.id===movie.id)){
+    list.push(movie);
+    localStorage.setItem("myList",JSON.stringify(list));
+    alert("Added to My List");
+  }
+}
+
+
+// 🎬 MODAL
+const modal = document.createElement("div");
+modal.className="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50";
+document.body.appendChild(modal);
+
+function openModal(movie){
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+
+  modal.innerHTML=`
+    <div class="bg-gray-900 max-w-2xl rounded-xl overflow-hidden">
+      <img src="${IMG+movie.backdrop_path}" class="w-full">
+      <div class="p-6 space-y-3">
+        <h2 class="text-3xl font-bold">${movie.title}</h2>
+        <p class="text-gray-300">${movie.overview}</p>
+        <button onclick="closeModal()" class="bg-red-600 px-4 py-2 rounded">Close</button>
+      </div>
+    </div>
+  `;
+}
+
+function closeModal(){
+  modal.classList.add("hidden");
+}
+
+
+// 🖱️📱 DRAG + SWIPE SLIDER
+function enableDragScroll(slider){
+  let isDown=false;
+  let startX;
+  let scrollLeft;
+
+  slider.addEventListener("mousedown",e=>{
+    isDown=true;
+    startX=e.pageX-slider.offsetLeft;
+    scrollLeft=slider.scrollLeft;
+  });
+
+  slider.addEventListener("mouseleave",()=>isDown=false);
+  slider.addEventListener("mouseup",()=>isDown=false);
+
+  slider.addEventListener("mousemove",e=>{
+    if(!isDown) return;
+    e.preventDefault();
+    const x=e.pageX-slider.offsetLeft;
+    const walk=(x-startX)*2;
+    slider.scrollLeft=scrollLeft-walk;
+  });
+
+  slider.addEventListener("touchstart",e=>{
+    startX=e.touches[0].pageX;
+    scrollLeft=slider.scrollLeft;
+  });
+
+  slider.addEventListener("touchmove",e=>{
+    const x=e.touches[0].pageX;
+    const walk=(x-startX)*2;
+    slider.scrollLeft=scrollLeft-walk;
+  });
+}
+</script>
+
+</body>
+</html>
